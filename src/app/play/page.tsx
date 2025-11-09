@@ -1215,14 +1215,43 @@ function PlayPageClient() {
     // 按行分割M3U8内容
     const lines = m3u8Content.split('\n');
     const filteredLines = [];
+    let inAdBlock = false; // 是否在广告区块内
+    let adSegmentCount = 0; // 统计移除的广告片段数量
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // 只过滤#EXT-X-DISCONTINUITY标识
+      // 🎯 增强功能1: 检测行业标准广告标记（SCTE-35系列）
+      // 使用 line.includes() 保持与原逻辑一致，兼容各种格式
+      if (line.includes('#EXT-X-CUE-OUT') ||
+          (line.includes('#EXT-X-DATERANGE') && line.includes('SCTE35')) ||
+          line.includes('#EXT-X-SCTE35') ||
+          line.includes('#EXT-OATCLS-SCTE35')) {
+        inAdBlock = true;
+        adSegmentCount++;
+        continue; // 跳过广告开始标记
+      }
+
+      // 🎯 增强功能2: 检测广告结束标记
+      if (line.includes('#EXT-X-CUE-IN')) {
+        inAdBlock = false;
+        continue; // 跳过广告结束标记
+      }
+
+      // 🎯 增强功能3: 如果在广告区块内，跳过所有内容
+      if (inAdBlock) {
+        continue;
+      }
+
+      // ✅ 原始逻辑保留: 过滤#EXT-X-DISCONTINUITY标识
       if (!line.includes('#EXT-X-DISCONTINUITY')) {
         filteredLines.push(line);
       }
+    }
+
+    // 输出统计信息
+    if (adSegmentCount > 0) {
+      console.log(`✅ M3U8广告过滤: 移除 ${adSegmentCount} 个广告片段`);
     }
 
     return filteredLines.join('\n');
@@ -1642,16 +1671,23 @@ function PlayPageClient() {
             // 处理搜索结果，使用智能模糊匹配（与downstream评分逻辑保持一致）
             const filteredResults = data.results.filter(
               (result: SearchResult) => {
+                // 如果有 douban_id，优先使用 douban_id 精确匹配
+                if (videoDoubanIdRef.current && videoDoubanIdRef.current > 0 && result.douban_id) {
+                  return result.douban_id === videoDoubanIdRef.current;
+                }
+
                 const queryTitle = videoTitleRef.current.replaceAll(' ', '').toLowerCase();
                 const resultTitle = result.title.replaceAll(' ', '').toLowerCase();
 
                 // 智能标题匹配：支持数字变体和标点符号变化
+                // 优先使用精确包含匹配，避免短标题（如"玫瑰"）匹配到包含该字的其他电影（如"玫瑰的故事"）
                 const titleMatch = resultTitle.includes(queryTitle) ||
                   queryTitle.includes(resultTitle) ||
                   // 移除数字和标点后匹配（针对"死神来了：血脉诅咒" vs "死神来了6：血脉诅咒"）
                   resultTitle.replace(/\d+|[：:]/g, '') === queryTitle.replace(/\d+|[：:]/g, '') ||
-                  // 通用关键词匹配：检查是否包含查询中的所有关键词
-                  checkAllKeywordsMatch(queryTitle, resultTitle);
+                  // 通用关键词匹配：仅当查询标题较长时（4个字符以上）才使用关键词匹配
+                  // 避免短标题（如"玫瑰"2字）被拆分匹配
+                  (queryTitle.length > 4 && checkAllKeywordsMatch(queryTitle, resultTitle));
 
                 const yearMatch = videoYearRef.current
                   ? result.year.toLowerCase() === videoYearRef.current.toLowerCase()
@@ -1807,7 +1843,8 @@ function PlayPageClient() {
         }
 
         // 如果有 shortdrama_id，额外添加短剧源到可用源列表
-        if (shortdramaId) {
+        // 但只有在没有指定其他源时才添加，避免电影等内容错误加载短剧源
+        if (shortdramaId && !currentSource && !currentId) {
           try {
             const shortdramaSource = await fetchSourceDetail('shortdrama', shortdramaId);
             if (shortdramaSource.length > 0) {
