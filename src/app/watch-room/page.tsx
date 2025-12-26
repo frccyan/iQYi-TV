@@ -2,17 +2,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, List as ListIcon, Lock, RefreshCw, Video } from 'lucide-react';
+import { Users, UserPlus, List as ListIcon, Lock, RefreshCw, Video, LogOut, Play } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useWatchRoomContext } from '@/components/WatchRoomProvider';
 import PageLayout from '@/components/PageLayout';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
-import type { Room } from '@/types/watch-room.types';
+import MiniVideoCard from '@/components/watch-room/MiniVideoCard';
+import type { Room, PlayState } from '@/types/watch-room.types';
 
 type TabType = 'create' | 'join' | 'list';
 
 export default function WatchRoomPage() {
+  const router = useRouter();
   const watchRoom = useWatchRoomContext();
-  const { getRoomList, isConnected, createRoom, joinRoom, currentRoom, isOwner, members } = watchRoom;
+  const { getRoomList, isConnected, createRoom, joinRoom, leaveRoom, currentRoom, isOwner, members, configLoading } = watchRoom;
   const [activeTab, setActiveTab] = useState<TabType>('create');
 
   // 获取当前登录用户
@@ -136,6 +139,13 @@ export default function WatchRoomPage() {
     setActiveTab('join');
   };
 
+  // 离开/解散房间
+  const handleLeaveRoom = () => {
+    if (confirm(isOwner ? '确定要解散房间吗？所有成员将被踢出房间。' : '确定要退出房间吗？')) {
+      leaveRoom();
+    }
+  };
+
   const formatTime = (timestamp: number) => {
     const now = Date.now();
     const diff = now - timestamp;
@@ -154,6 +164,22 @@ export default function WatchRoomPage() {
     { id: 'join' as TabType, label: '加入房间', icon: UserPlus },
     { id: 'list' as TabType, label: '房间列表', icon: ListIcon },
   ];
+
+  // 配置加载中
+  if (configLoading) {
+    return (
+      <PageLayout>
+        <div className='flex items-center justify-center min-h-screen'>
+          <div className='text-center max-w-md'>
+            <RefreshCw className='w-16 h-16 mx-auto mb-4 text-indigo-500 animate-spin' />
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2'>
+              加载配置中...
+            </h2>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   // 未启用提示
   if (!watchRoom.isEnabled) {
@@ -195,15 +221,24 @@ export default function WatchRoomPage() {
       <div className="flex flex-col gap-4 py-4 px-5 lg:px-[3rem] 2xl:px-20">
         {/* 页面标题 */}
         <div className="py-1">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-500" />
-            观影室
-            {currentRoom && (
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
-                ({isOwner ? '房主' : '房员'})
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <Users className="w-6 h-6 text-indigo-500" />
+              观影室
+              {currentRoom && (
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                  ({isOwner ? '房主' : '房员'})
+                </span>
+              )}
+            </h1>
+            {/* 连接状态指示器 */}
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {isConnected ? '已连接' : '未连接'}
               </span>
-            )}
-          </h1>
+            </div>
+          </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             与好友一起看视频，实时同步播放
           </p>
@@ -274,6 +309,40 @@ export default function WatchRoomPage() {
                       </div>
                     </div>
 
+                    {/* 正在观看的影片 */}
+                    {currentRoom.currentState && currentRoom.currentState.type === 'play' && (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Play className="w-4 h-4 text-green-500" />
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">正在观看</h4>
+                        </div>
+                        <MiniVideoCard
+                          title={currentRoom.currentState.videoName}
+                          year={currentRoom.currentState.videoYear}
+                          episode={currentRoom.currentState.episode}
+                          poster={currentRoom.currentState.poster}
+                          totalEpisodes={currentRoom.currentState.totalEpisodes}
+                          onClick={() => {
+                            const state = currentRoom.currentState as PlayState;
+                            const params = new URLSearchParams();
+                            params.set('id', state.videoId);
+                            params.set('source', state.source);
+                            params.set('title', state.videoName);
+                            if (state.videoYear) params.set('year', state.videoYear);
+                            if (state.searchTitle) params.set('stitle', state.searchTitle);
+                            if (state.episode !== undefined && state.episode !== null) {
+                              params.set('index', state.episode.toString());
+                            }
+                            if (state.currentTime) {
+                              params.set('t', state.currentTime.toString());
+                            }
+                            params.set('prefer', 'true');
+                            router.push(`/play?${params.toString()}`);
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {/* 成员列表 */}
                     <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">房间成员</h4>
@@ -304,9 +373,20 @@ export default function WatchRoomPage() {
                     {/* 提示信息 */}
                     <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
                       <p className="text-sm text-indigo-800 dark:text-indigo-200">
-                        💡 前往播放页面开始观影，房间成员将自动同步您的操作
+                        💡 {currentRoom.currentState && currentRoom.currentState.type === 'play'
+                          ? '点击上方视频卡片可跳转到播放页面继续观看'
+                          : '前往播放页面开始观影，房间成员将自动同步您的操作'}
                       </p>
                     </div>
+
+                    {/* 离开/解散房间按钮 */}
+                    <button
+                      onClick={handleLeaveRoom}
+                      className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      {isOwner ? '解散房间' : '退出房间'}
+                    </button>
                   </div>
                 ) : (
                   <form onSubmit={handleCreateRoom} className="space-y-4">
@@ -432,6 +512,40 @@ export default function WatchRoomPage() {
                       </div>
                     </div>
 
+                    {/* 正在观看的影片 */}
+                    {currentRoom.currentState && currentRoom.currentState.type === 'play' && (
+                      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Play className="w-4 h-4 text-green-500" />
+                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">正在观看</h4>
+                        </div>
+                        <MiniVideoCard
+                          title={currentRoom.currentState.videoName}
+                          year={currentRoom.currentState.videoYear}
+                          episode={currentRoom.currentState.episode}
+                          poster={currentRoom.currentState.poster}
+                          totalEpisodes={currentRoom.currentState.totalEpisodes}
+                          onClick={() => {
+                            const state = currentRoom.currentState as PlayState;
+                            const params = new URLSearchParams();
+                            params.set('id', state.videoId);
+                            params.set('source', state.source);
+                            params.set('title', state.videoName);
+                            if (state.videoYear) params.set('year', state.videoYear);
+                            if (state.searchTitle) params.set('stitle', state.searchTitle);
+                            if (state.episode !== undefined && state.episode !== null) {
+                              params.set('index', state.episode.toString());
+                            }
+                            if (state.currentTime) {
+                              params.set('t', state.currentTime.toString());
+                            }
+                            params.set('prefer', 'true');
+                            router.push(`/play?${params.toString()}`);
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {/* 成员列表 */}
                     <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">房间成员</h4>
@@ -462,9 +576,22 @@ export default function WatchRoomPage() {
                     {/* 提示信息 */}
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
                       <p className="text-sm text-green-800 dark:text-green-200">
-                        💡 {isOwner ? '前往播放页面开始观影，房间成员将自动同步您的操作' : '等待房主开始播放，您的播放进度将自动跟随房主'}
+                        💡 {currentRoom.currentState && currentRoom.currentState.type === 'play'
+                          ? '点击上方视频卡片可跳转到播放页面继续观看'
+                          : isOwner
+                            ? '前往播放页面开始观影，房间成员将自动同步您的操作'
+                            : '等待房主开始播放，您的播放进度将自动跟随房主'}
                       </p>
                     </div>
+
+                    {/* 离开/解散房间按钮 */}
+                    <button
+                      onClick={handleLeaveRoom}
+                      className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      {isOwner ? '解散房间' : '退出房间'}
+                    </button>
                   </div>
                 ) : (
                   <form onSubmit={handleJoinRoom} className="space-y-4">
@@ -569,29 +696,29 @@ export default function WatchRoomPage() {
 
               {/* 房间卡片列表 */}
               {rooms.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {rooms.map((room) => (
                     <div
                       key={room.id}
-                      className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
+                      className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
                     >
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-2.5">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">
+                          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">
                             {room.name}
                           </h3>
                           {room.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mt-0.5">
                               {room.description}
                             </p>
                           )}
                         </div>
                         {room.password && (
-                          <Lock className="w-5 h-5 text-yellow-500 flex-shrink-0 ml-2" />
+                          <Lock className="w-4 h-4 text-yellow-500 flex-shrink-0 ml-2" />
                         )}
                       </div>
 
-                      <div className="space-y-2 text-sm mb-4">
+                      <div className="space-y-1.5 text-sm mb-3">
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500 dark:text-gray-400">房间号</span>
                           <span className="font-mono text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -611,6 +738,41 @@ export default function WatchRoomPage() {
                           <span>{formatTime(room.createdAt)}</span>
                         </div>
                       </div>
+
+                      {/* 正在观看的影片 - 小型卡片 */}
+                      {room.currentState && room.currentState.type === 'play' && (() => {
+                        const playState = room.currentState as PlayState;
+                        return (
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Play className="w-4 h-4 text-green-500" />
+                              <span className="text-sm font-medium text-green-600 dark:text-green-400">正在观看</span>
+                            </div>
+                            <MiniVideoCard
+                              title={playState.videoName}
+                              year={playState.videoYear}
+                              episode={playState.episode}
+                              poster={playState.poster}
+                              totalEpisodes={playState.totalEpisodes}
+                              onClick={() => {
+                                // 房间列表：用户未加入房间，只跳转观看，不同步时间
+                                const params = new URLSearchParams();
+                                params.set('id', playState.videoId);
+                                params.set('source', playState.source);
+                                params.set('title', playState.videoName);
+                                if (playState.videoYear) params.set('year', playState.videoYear);
+                                if (playState.searchTitle) params.set('stitle', playState.searchTitle);
+                                if (playState.episode !== undefined && playState.episode !== null) {
+                                  params.set('index', playState.episode.toString());
+                                }
+                                // ⚠️ 不携带时间参数 t 和 prefer，因为用户还没加入房间
+
+                                router.push(`/play?${params.toString()}`);
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       <button
                         onClick={() => handleJoinFromList(room)}
