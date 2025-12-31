@@ -88,6 +88,7 @@ export const runtime = 'nodejs';
 
 /**
  * 从移动端API获取预告片和高清图片（内部函数）
+ * 2024-2025 最佳实践：使用最新 User-Agent 和完整请求头
  */
 async function _fetchMobileApiData(id: string): Promise<{
   trailerUrl?: string;
@@ -95,13 +96,28 @@ async function _fetchMobileApiData(id: string): Promise<{
 } | null> {
   try {
     const mobileApiUrl = `https://m.douban.com/rexxar/api/v2/movie/${id}`;
+
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+
     const response = await fetch(mobileApiUrl, {
+      signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/537.36',
-        'Referer': 'https://m.douban.com/',
-        'Accept': 'application/json',
+        // 2024-2025 最新 User-Agent（桌面版更不容易被限制）
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        'Referer': 'https://movie.douban.com/explore',  // 更具体的 Referer
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Origin': 'https://movie.douban.com',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site',
       },
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.warn(`移动端API请求失败: ${response.status}`);
@@ -132,21 +148,26 @@ async function _fetchMobileApiData(id: string): Promise<{
 
     return { trailerUrl, backdrop };
   } catch (error) {
-    console.warn(`获取移动端API数据失败: ${(error as Error).message}`);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn(`获取移动端API数据超时`);
+    } else {
+      console.warn(`获取移动端API数据失败: ${(error as Error).message}`);
+    }
     return null;
   }
 }
 
 /**
  * 使用 unstable_cache 包裹移动端API请求
- * - 7天缓存（预告片和高清图片很少变化）
+ * - 30分钟缓存（trailer URL 有时效性，需要较短缓存）
  * - 与详情页缓存分开管理
+ * - Next.js会自动根据函数参数区分缓存
  */
 const fetchMobileApiData = unstable_cache(
-  _fetchMobileApiData,
+  async (id: string) => _fetchMobileApiData(id),
   ['douban-mobile-api'],
   {
-    revalidate: 604800, // 7天缓存
+    revalidate: 1800, // 30分钟缓存
     tags: ['douban-mobile'],
   }
 );
@@ -285,9 +306,10 @@ async function _scrapeDoubanDetails(id: string, retryCount = 0): Promise<any> {
  * 使用 unstable_cache 包裹爬虫函数
  * - 4小时缓存
  * - 自动重新验证
+ * - Next.js会自动根据函数参数区分缓存
  */
 export const scrapeDoubanDetails = unstable_cache(
-  _scrapeDoubanDetails,
+  async (id: string, retryCount = 0) => _scrapeDoubanDetails(id, retryCount),
   ['douban-details'],
   {
     revalidate: 14400, // 4小时缓存
@@ -331,15 +353,18 @@ export async function GET(request: Request) {
     const cacheTime = await getCacheTime();
 
     // 🔍 调试模式：绕过缓存
+    // 🎬 Trailer安全缓存：30分钟（与移动端API的unstable_cache保持一致）
+    // 因为trailer URL有效期约2-3小时，30分钟缓存确保用户拿到的链接仍然有效
+    const trailerSafeCacheTime = 1800; // 30分钟
     const cacheHeaders = noCache ? {
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       'Pragma': 'no-cache',
       'Expires': '0',
       'X-Data-Source': 'no-cache-debug',
     } : {
-      'Cache-Control': `public, max-age=${cacheTime}, s-maxage=86400, stale-while-revalidate=43200`,
-      'CDN-Cache-Control': `public, s-maxage=86400`,
-      'Vercel-CDN-Cache-Control': `public, s-maxage=86400`,
+      'Cache-Control': `public, max-age=${trailerSafeCacheTime}, s-maxage=${trailerSafeCacheTime}, stale-while-revalidate=${trailerSafeCacheTime}`,
+      'CDN-Cache-Control': `public, s-maxage=${trailerSafeCacheTime}`,
+      'Vercel-CDN-Cache-Control': `public, s-maxage=${trailerSafeCacheTime}`,
       'Netlify-Vary': 'query',
       'X-Data-Source': 'scraper-cached',
     };
