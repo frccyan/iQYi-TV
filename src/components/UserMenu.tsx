@@ -99,7 +99,7 @@ export const UserMenu: React.FC = () => {
   // 设置相关状态
   const [defaultAggregateSearch, setDefaultAggregateSearch] = useState(true);
   const [doubanProxyUrl, setDoubanProxyUrl] = useState('');
-  const [enableOptimization, setEnableOptimization] = useState(false);
+  const [enableOptimization, setEnableOptimization] = useState(true);
   const [fluidSearch, setFluidSearch] = useState(true);
   const [liveDirectConnect, setLiveDirectConnect] = useState(false);
   const [playerBufferMode, setPlayerBufferMode] = useState<
@@ -118,8 +118,8 @@ export const UserMenu: React.FC = () => {
   const [enableAutoSkip, setEnableAutoSkip] = useState(false);
   const [enableAutoNextEpisode, setEnableAutoNextEpisode] = useState(true);
 
-  // 清空继续观看确认设置（默认关闭，需要的用户可以开启）
-  const [requireClearConfirmation, setRequireClearConfirmation] = useState(false);
+  // 清空继续观看确认设置（默认开启，防止误操作）
+  const [requireClearConfirmation, setRequireClearConfirmation] = useState(true);
 
   // 下载相关设置
   const [downloadFormat, setDownloadFormat] = useState<'TS' | 'MP4'>('TS');
@@ -931,7 +931,7 @@ export const UserMenu: React.FC = () => {
       (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
 
     setDefaultAggregateSearch(true);
-    setEnableOptimization(false);
+    setEnableOptimization(true);
     setFluidSearch(defaultFluidSearch);
     setLiveDirectConnect(false);
     setDoubanProxyUrl(defaultDoubanProxy);
@@ -948,7 +948,7 @@ export const UserMenu: React.FC = () => {
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('defaultAggregateSearch', JSON.stringify(true));
-      localStorage.setItem('enableOptimization', JSON.stringify(false));
+      localStorage.setItem('enableOptimization', JSON.stringify(true));
       localStorage.setItem('fluidSearch', JSON.stringify(defaultFluidSearch));
       localStorage.setItem('liveDirectConnect', JSON.stringify(false));
       localStorage.setItem('doubanProxyUrl', defaultDoubanProxy);
@@ -958,9 +958,9 @@ export const UserMenu: React.FC = () => {
       localStorage.setItem('continueWatchingMinProgress', '5');
       localStorage.setItem('continueWatchingMaxProgress', '100');
       localStorage.setItem('enableContinueWatchingFilter', JSON.stringify(false));
-      localStorage.setItem('enableAutoSkip', JSON.stringify(true));
+      localStorage.setItem('enableAutoSkip', JSON.stringify(false));
       localStorage.setItem('enableAutoNextEpisode', JSON.stringify(true));
-      localStorage.setItem('requireClearConfirmation', JSON.stringify(false));
+      localStorage.setItem('requireClearConfirmation', JSON.stringify(true));
       localStorage.setItem('playerBufferMode', 'standard');
       localStorage.setItem('downloadFormat', 'TS');
     }

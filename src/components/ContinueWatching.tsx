@@ -33,7 +33,7 @@ export default function ContinueWatching({ className }: ContinueWatchingProps) {
   >([]);
   const [loading, setLoading] = useState(true);
   const [watchingUpdates, setWatchingUpdates] = useState<WatchingUpdate | null>(null);
-  const [requireClearConfirmation, setRequireClearConfirmation] = useState(false);
+  const [requireClearConfirmation, setRequireClearConfirmation] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // 读取清空确认设置
