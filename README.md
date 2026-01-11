@@ -7,7 +7,7 @@
 
 ---
 
-# LunaTV Enhanced Edition
+# iQYi TV Enhanced Edition
 
 <div align="center">
   <img src="public/logo.png" alt="LunaTV Logo" width="120">
