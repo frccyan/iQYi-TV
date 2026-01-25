@@ -39,7 +39,7 @@ interface PerformanceData {
 export default function PerformanceMonitor() {
   const [data, setData] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'1' | '24'>('24');
+  const [timeRange, setTimeRange] = useState<'1' | '24'>('1'); // 默认显示最近1小时
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [apiFilter, setApiFilter] = useState<string>('all');
 
@@ -54,6 +54,12 @@ export default function PerformanceMonitor() {
       '/api/cron': 'Cron 任务',
       '/api/series': '剧集管理',
       '/api/favorites': '收藏管理',
+      '/api/playrecords': '播放记录',
+      '/api/skipconfigs': '跳过配置',
+      '/api/search': '视频搜索',
+      '/api/source-browser/list': '视频列表',
+      '/api/detail': '视频详情',
+      '/api/danmu-external': '弹幕获取',
       '/api/admin': '管理后台',
     };
 
@@ -78,8 +84,66 @@ export default function PerformanceMonitor() {
       if (apiFilter === 'admin') return req.path.startsWith('/api/admin');
       if (apiFilter === 'series') return req.path.startsWith('/api/series');
       if (apiFilter === 'favorites') return req.path.startsWith('/api/favorites');
+      if (apiFilter === 'playrecords') return req.path.startsWith('/api/playrecords');
+      if (apiFilter === 'skipconfigs') return req.path.startsWith('/api/skipconfigs');
+      if (apiFilter === 'search') return req.path.startsWith('/api/search');
+      if (apiFilter === 'list') return req.path.startsWith('/api/source-browser/list');
+      if (apiFilter === 'detail') return req.path.startsWith('/api/detail');
+      if (apiFilter === 'danmu') return req.path.startsWith('/api/danmu-external');
       return true;
     });
+  };
+
+  // 计算过滤后的统计数据
+  const getFilteredStats = () => {
+    if (!data) return null;
+
+    // 根据选择的时间范围获取请求
+    const now = Date.now();
+    const timeRangeMs = parseInt(timeRange) * 60 * 60 * 1000; // 转换为毫秒
+    const startTime = now - timeRangeMs;
+    const recentRequests = data.recentRequests.filter((r: any) => r.timestamp > startTime);
+
+    // 应用API筛选
+    const filteredRequests = filterRequests(recentRequests);
+
+    if (filteredRequests.length === 0) {
+      return {
+        requestsPerMinute: 0,
+        avgResponseTime: 0,
+        dbQueriesPerMinute: 0,
+        trafficPerMinute: 0,
+      };
+    }
+
+    // 计算时间范围内的分钟数
+    const minutes = parseInt(timeRange) * 60;
+
+    // 计算平均每分钟请求数（保留2位小数）
+    const requestsPerMinute = Number((filteredRequests.length / minutes).toFixed(2));
+
+    // 计算平均响应时间（保留整数）
+    const avgResponseTime = Math.round(
+      filteredRequests.reduce((sum: number, r: any) => sum + r.duration, 0) / filteredRequests.length
+    );
+
+    // 计算平均每分钟DB查询数（保留2位小数）
+    const totalDbQueries = filteredRequests.reduce((sum: number, r: any) => sum + r.dbQueries, 0);
+    const dbQueriesPerMinute = Number((totalDbQueries / minutes).toFixed(2));
+
+    // 计算平均每分钟流量（保留2位小数，单位：字节）
+    const totalTraffic = filteredRequests.reduce(
+      (sum: number, r: any) => sum + r.requestSize + r.responseSize,
+      0
+    );
+    const trafficPerMinute = Number((totalTraffic / minutes).toFixed(2));
+
+    return {
+      requestsPerMinute,
+      avgResponseTime,
+      dbQueriesPerMinute,
+      trafficPerMinute,
+    };
   };
 
   // 获取性能数据
@@ -142,6 +206,9 @@ export default function PerformanceMonitor() {
     );
   }
 
+  // 获取过滤后的统计数据
+  const filteredStats = getFilteredStats();
+
   return (
     <div className='space-y-6 pb-safe-bottom'>
       {/* 标题和控制按钮 */}
@@ -168,10 +235,16 @@ export default function PerformanceMonitor() {
           >
             <option value='all'>全部 API</option>
             <option value='douban'>豆瓣 API</option>
-            <option value='cron'>Cron 任务</option>
-            <option value='admin'>管理后台</option>
-            <option value='series'>剧集管理</option>
+            <option value='search'>视频搜索</option>
+            <option value='list'>视频列表</option>
+            <option value='detail'>视频详情</option>
+            <option value='danmu'>弹幕获取</option>
             <option value='favorites'>收藏管理</option>
+            <option value='playrecords'>播放记录</option>
+            <option value='skipconfigs'>跳过配置</option>
+            <option value='cron'>Cron 任务</option>
+            <option value='series'>剧集管理</option>
+            <option value='admin'>管理后台</option>
           </select>
 
           {/* 自动刷新 */}
@@ -244,10 +317,10 @@ export default function PerformanceMonitor() {
             <Activity className='w-5 h-5 text-green-500' />
           </div>
           <div className='text-2xl font-bold text-gray-800 dark:text-gray-200'>
-            {data.currentStatus.requestsPerMinute}
+            {filteredStats?.requestsPerMinute ?? 0}
           </div>
           <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
-            平均响应: {data.currentStatus.avgResponseTime}ms
+            平均响应: {filteredStats?.avgResponseTime ?? 0}ms
           </div>
         </div>
 
@@ -258,7 +331,7 @@ export default function PerformanceMonitor() {
             <Database className='w-5 h-5 text-purple-500' />
           </div>
           <div className='text-2xl font-bold text-gray-800 dark:text-gray-200'>
-            {data.currentStatus.dbQueriesPerMinute}
+            {filteredStats?.dbQueriesPerMinute ?? 0}
           </div>
         </div>
 
@@ -269,7 +342,7 @@ export default function PerformanceMonitor() {
             <Activity className='w-5 h-5 text-orange-500' />
           </div>
           <div className='text-2xl font-bold text-gray-800 dark:text-gray-200'>
-            {(data.currentStatus.trafficPerMinute / 1024).toFixed(2)} KB
+            {((filteredStats?.trafficPerMinute ?? 0) / 1024).toFixed(2)} KB
           </div>
         </div>
       </div>
