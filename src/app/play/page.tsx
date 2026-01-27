@@ -2256,6 +2256,12 @@ function PlayPageClient() {
           throw new Error('获取视频详情失败');
         }
         const detailData = (await detailResponse.json()) as SearchResult;
+
+        // 检查是否有有效的集数数据
+        if (!detailData.episodes || detailData.episodes.length === 0) {
+          throw new Error('该源没有可用的集数数据');
+        }
+
         setAvailableSources([detailData]);
         return [detailData];
       } catch (err) {
@@ -2475,7 +2481,10 @@ function PlayPageClient() {
         if (shortdramaId) {
           try {
             const shortdramaSource = await fetchSourceDetail('shortdrama', shortdramaId);
-            if (shortdramaSource.length > 0) {
+            // 检查短剧源是否有有效数据（必须有 episodes 且 episodes 不为空）
+            if (shortdramaSource.length > 0 &&
+                shortdramaSource[0].episodes &&
+                shortdramaSource[0].episodes.length > 0) {
               // 检查是否已存在相同的短剧源，避免重复
               const existingShortdrama = sourcesInfo.find(
                 (s) => s.source === 'shortdrama' && s.id === shortdramaId
@@ -2485,6 +2494,8 @@ function PlayPageClient() {
                 // 重新设置 availableSources 以包含短剧源
                 setAvailableSources(sourcesInfo);
               }
+            } else {
+              console.log('⚠️ 短剧源没有有效的集数数据，跳过添加');
             }
           } catch (error) {
             console.error('添加短剧源失败:', error);
@@ -5196,10 +5207,10 @@ function PlayPageClient() {
                 currentId={currentId}
                 videoTitle={searchTitle || videoTitle}
                 availableSources={availableSources.filter(source => {
-                  // 必须有集数数据
+                  // 必须有集数数据（所有源包括短剧源都必须满足）
                   if (!source.episodes || source.episodes.length < 1) return false;
 
-                  // 短剧源始终显示，不受集数差异限制
+                  // 短剧源不受集数差异限制（但必须有集数数据）
                   if (source.source === 'shortdrama') return true;
 
                   // 如果当前有 detail，只显示集数相近的源（允许 ±30% 的差异）
@@ -5338,9 +5349,15 @@ function PlayPageClient() {
 
               {/* 资源类型切换器 - 仅当是动漫时显示 */}
               {(() => {
-                const isAnime = detail?.type_name?.toLowerCase().includes('动漫') ||
-                               detail?.type_name?.toLowerCase().includes('动画') ||
-                               detail?.type_name?.toLowerCase().includes('anime');
+                const typeName = detail?.type_name?.toLowerCase() || '';
+                const isAnime = typeName.includes('动漫') ||
+                               typeName.includes('动画') ||
+                               typeName.includes('anime') ||
+                               typeName.includes('番剧') ||
+                               typeName.includes('日剧') ||
+                               typeName.includes('韩剧');
+
+                console.log('[NetDisk] type_name:', detail?.type_name, 'isAnime:', isAnime);
 
                 return isAnime && (
                   <div className='flex items-center gap-2'>
