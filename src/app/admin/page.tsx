@@ -314,6 +314,7 @@ interface DataSource {
   from: 'config' | 'custom';
   is_adult?: boolean;
   type?: 'vod' | 'shortdrama'; // 视频源类型：vod=普通视频，shortdrama=短剧
+  weight?: number; // 优先级权重：0-100，数字越大优先级越高，默认50
 }
 
 // 直播源数据类型
@@ -2907,6 +2908,18 @@ const VideoSourceConfig = ({
     });
   };
 
+  // 更新源权重
+  const handleUpdateWeight = (key: string, weight: number) => {
+    // 限制权重范围 0-100
+    const validWeight = Math.max(0, Math.min(100, weight));
+    // 立即更新本地状态
+    setSources(prev => prev.map(s => s.key === key ? { ...s, weight: validWeight } : s));
+    // 异步保存到后端
+    withLoading(`updateWeight_${key}`, () => callSourceApi({ action: 'update_weight', key, weight: validWeight })).catch(() => {
+      console.error('操作失败', 'update_weight', key);
+    });
+  };
+
   // 保存普通视频源代理配置
   const handleSaveVideoProxy = async () => {
     try {
@@ -3025,6 +3038,39 @@ const VideoSourceConfig = ({
         type: 'error',
         title: '操作失败',
         message: `${markAsAdult ? '标记' : '取消标记'}失败，请重试`,
+        showConfirm: true
+      });
+    }
+  };
+
+  const handleBatchMarkType = async (type: 'vod' | 'shortdrama') => {
+    if (selectedSources.size === 0) {
+      showAlert({
+        type: 'warning',
+        title: '提示',
+        message: '请先选择要操作的视频源'
+      });
+      return;
+    }
+
+    const keys = Array.from(selectedSources);
+    const action = type === 'shortdrama' ? 'batch_mark_shortdrama' : 'batch_mark_vod';
+    const typeName = type === 'shortdrama' ? '短剧' : '视频';
+
+    try {
+      await withLoading(`batchSource_${action}`, () => callSourceApi({ action, keys, type }));
+      showAlert({
+        type: 'success',
+        title: '操作成功',
+        message: `标记为${typeName}类型成功！共处理 ${keys.length} 个视频源`,
+        timer: 2000
+      });
+      setSelectedSources(new Set());
+    } catch {
+      showAlert({
+        type: 'error',
+        title: '操作失败',
+        message: `标记为${typeName}类型失败，请重试`,
         showConfirm: true
       });
     }
@@ -3324,6 +3370,17 @@ const VideoSourceConfig = ({
               普通源
             </span>
           )}
+        </td>
+        <td className='px-6 py-4 whitespace-nowrap text-center'>
+          <input
+            type='number'
+            min='0'
+            max='100'
+            value={source.weight ?? 50}
+            onChange={(e) => handleUpdateWeight(source.key, parseInt(e.target.value) || 0)}
+            className='w-16 px-2 py-1 text-center text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+            title='权重越高，播放时越优先选择该源（0-100）'
+          />
         </td>
         <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
           {(() => {
@@ -3849,6 +3906,22 @@ const VideoSourceConfig = ({
                 >
                   {isLoading('batchSource_batch_unmark_adult') ? '取消中...' : '取消标记'}
                 </button>
+                <button
+                  onClick={() => handleBatchMarkType('shortdrama')}
+                  disabled={isLoading('batchSource_batch_mark_shortdrama')}
+                  className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_mark_shortdrama') ? buttonStyles.disabled : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition-colors'}`}
+                  title='将选中的视频源标记为短剧类型'
+                >
+                  {isLoading('batchSource_batch_mark_shortdrama') ? '标记中...' : '标记短剧'}
+                </button>
+                <button
+                  onClick={() => handleBatchMarkType('vod')}
+                  disabled={isLoading('batchSource_batch_mark_vod')}
+                  className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_mark_vod') ? buttonStyles.disabled : buttonStyles.secondary}`}
+                  title='将选中的视频源标记为普通视频类型'
+                >
+                  {isLoading('batchSource_batch_mark_vod') ? '标记中...' : '标记视频'}
+                </button>
               </div>
               <div className='hidden sm:block w-px h-6 bg-gray-300 dark:bg-gray-600 order-2'></div>
             </>
@@ -4189,6 +4262,9 @@ const VideoSourceConfig = ({
               </th>
               <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 源类型
+              </th>
+              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                权重
               </th>
               <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 有效性
