@@ -6708,92 +6708,6 @@ const NetDiskConfig = ({
     }));
   };
 
-  {/* 认证配置区域 */ }
-  <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">认证配置</h3>
-
-    {/* 启用认证开关 */}
-    <div className="flex items-center justify-between mb-4">
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">启用PanSou认证</label>
-      <input
-        type="checkbox"
-        checked={netDiskSettings.enableAuth}
-        onChange={(e) => setNetDiskSettings(prev => ({ ...prev, enableAuth: e.target.checked }))}
-      />
-    </div>
-
-    {/* 认证方式配置 */}
-    {netDiskSettings.enableAuth && (
-      <div className="space-y-4">
-        {/* 认证方式选择 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">认证方式</label>
-          <div className="flex space-x-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="token"
-                checked={netDiskSettings.authType === 'token'}
-                onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authType: e.target.value }))}
-                className="mr-2"
-              />
-              使用Token
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                value="password"
-                checked={netDiskSettings.authType === 'password'}
-                onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authType: e.target.value }))}
-                className="mr-2"
-              />
-              使用用户名密码
-            </label>
-          </div>
-        </div>
-
-        {/* Token方式输入框 */}
-        {netDiskSettings.authType === 'token' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">JWT Token</label>
-            <input
-              type="password"
-              value={netDiskSettings.authToken}
-              onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authToken: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="输入JWT Token"
-            />
-          </div>
-        )}
-
-        {/* 用户名密码方式输入框 */}
-        {netDiskSettings.authType === 'password' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">用户名</label>
-              <input
-                value={netDiskSettings.authUsername}
-                onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authUsername: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="输入用户名"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">密码</label>
-              <input
-                type="password"
-                value={netDiskSettings.authPassword}
-                onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authPassword: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="输入密码"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-
   return (
     <div className='space-y-6'>
       {/* 基础设置 */}
@@ -6926,6 +6840,92 @@ const NetDiskConfig = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 认证配置区域 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">认证配置</h3>
+
+        {/* 启用认证开关 */}
+        <div className="flex items-center justify-between mb-4">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">启用PanSou认证</label>
+          <input
+            type="checkbox"
+            checked={netDiskSettings.enableAuth}
+            onChange={(e) => setNetDiskSettings(prev => ({ ...prev, enableAuth: e.target.checked }))}
+          />
+        </div>
+
+        {/* 认证方式配置 */}
+        {netDiskSettings.enableAuth && (
+          <div className="space-y-4">
+            {/* 认证方式选择 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">认证方式</label>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="token"
+                    checked={netDiskSettings.authType === 'token'}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authType: e.target.value }))}
+                    className="mr-2"
+                  />
+                  使用Token
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="password"
+                    checked={netDiskSettings.authType === 'password'}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authType: e.target.value }))}
+                    className="mr-2"
+                  />
+                  使用用户名密码
+                </label>
+              </div>
+            </div>
+
+            {/* Token方式输入框 */}
+            {netDiskSettings.authType === 'token' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">JWT Token</label>
+                <input
+                  type="password"
+                  value={netDiskSettings.authToken}
+                  onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authToken: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="输入JWT Token"
+                />
+              </div>
+            )}
+
+            {/* 用户名密码方式输入框 */}
+            {netDiskSettings.authType === 'password' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">用户名</label>
+                  <input
+                    value={netDiskSettings.authUsername}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authUsername: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="输入用户名"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">密码</label>
+                  <input
+                    type="password"
+                    value={netDiskSettings.authPassword}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="输入密码"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 保存按钮 */}
