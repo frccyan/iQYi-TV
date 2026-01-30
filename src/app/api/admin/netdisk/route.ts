@@ -54,6 +54,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 验证认证配置
+    if (typeof netDiskConfig.enableAuth !== 'boolean') {
+      return NextResponse.json({ error: 'Invalid enableAuth value' }, { status: 400 });
+    }
+
+    if (netDiskConfig.enableAuth) {
+      if (!['token', 'password'].includes(netDiskConfig.authType)) {
+        return NextResponse.json({ error: 'Invalid authType value' }, { status: 400 });
+      }
+
+      if (netDiskConfig.authType === 'token' && (!netDiskConfig.authToken || typeof netDiskConfig.authToken !== 'string')) {
+        return NextResponse.json({ error: 'Invalid authToken value' }, { status: 400 });
+      }
+
+      if (netDiskConfig.authType === 'password') {
+        if (!netDiskConfig.authUsername || typeof netDiskConfig.authUsername !== 'string') {
+          return NextResponse.json({ error: 'Invalid authUsername value' }, { status: 400 });
+        }
+        if (!netDiskConfig.authPassword || typeof netDiskConfig.authPassword !== 'string') {
+          return NextResponse.json({ error: 'Invalid authPassword value' }, { status: 400 });
+        }
+      }
+    }
+
     // 获取当前配置
     const adminConfig = await getConfig();
     

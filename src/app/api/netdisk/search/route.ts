@@ -63,12 +63,43 @@ export async function GET(request: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), (netDiskConfig.timeout || 30) * 1000);
 
+    // 构建请求头
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'LunaTV/1.0'
+    };
+
+    // 添加认证头
+    if (netDiskConfig.enableAuth) {
+      if (netDiskConfig.authType === 'token' && netDiskConfig.authToken) {
+        headers['Authorization'] = `Bearer ${netDiskConfig.authToken}`;
+      } else if (netDiskConfig.authType === 'password' && netDiskConfig.authUsername && netDiskConfig.authPassword) {
+        // 用户名密码方式：先调用PanSou的登录接口获取token
+        try {
+          const loginResponse = await fetch(`${netDiskConfig.pansouUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: netDiskConfig.authUsername,
+              password: netDiskConfig.authPassword
+            })
+          });
+
+          if (loginResponse.ok) {
+            const loginResult = await loginResponse.json();
+            headers['Authorization'] = `Bearer ${loginResult.token}`;
+          } else {
+            console.warn('PanSou登录失败，将使用无认证方式请求');
+          }
+        } catch (loginError) {
+          console.warn('PanSou登录接口调用失败:', loginError);
+        }
+      }
+    }
+
     const pansouResponse = await fetch(`${netDiskConfig.pansouUrl}/api/search`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'User-Agent': 'LunaTV/1.0'
-      },
+      headers: headers,
       signal: controller.signal,
       body: JSON.stringify({
         kw: query,

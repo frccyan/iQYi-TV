@@ -424,6 +424,12 @@ export async function configSelfCheck(adminConfig: AdminConfig): Promise<AdminCo
       pansouUrl: 'https://so.252035.xyz',               // 默认公益服务
       timeout: 30,                                      // 默认30秒超时
       enabledCloudTypes: ['baidu', 'aliyun', 'quark'] // 默认只启用百度、阿里、夸克三大主流网盘
+      // 新增认证配置默认值
+      enableAuth: false,
+      authType: 'token',
+      authToken: '',
+      authUsername: '',
+      authPassword: ''
     };
   }
 
