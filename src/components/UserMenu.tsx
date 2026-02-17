@@ -886,7 +886,7 @@ export const UserMenu: React.FC = () => {
       (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
 
     setDefaultAggregateSearch(true);
-    setEnableOptimization(false);
+    setEnableOptimization(true);
     setFluidSearch(defaultFluidSearch);
     setLiveDirectConnect(false);
     setDoubanProxyUrl(defaultDoubanProxy);
@@ -896,14 +896,15 @@ export const UserMenu: React.FC = () => {
     setContinueWatchingMinProgress(5);
     setContinueWatchingMaxProgress(100);
     setEnableContinueWatchingFilter(false);
-    setEnableAutoSkip(true);
+    setEnableAutoSkip(false);
     setEnableAutoNextEpisode(true);
+    setRequireClearConfirmation(true);
     setPlayerBufferMode('standard');
     setDownloadFormat('TS');
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('defaultAggregateSearch', JSON.stringify(true));
-      localStorage.setItem('enableOptimization', JSON.stringify(false));
+      localStorage.setItem('enableOptimization', JSON.stringify(true));
       localStorage.setItem('fluidSearch', JSON.stringify(defaultFluidSearch));
       localStorage.setItem('liveDirectConnect', JSON.stringify(false));
       localStorage.setItem('doubanProxyUrl', defaultDoubanProxy);
@@ -913,9 +914,9 @@ export const UserMenu: React.FC = () => {
       localStorage.setItem('continueWatchingMinProgress', '5');
       localStorage.setItem('continueWatchingMaxProgress', '100');
       localStorage.setItem('enableContinueWatchingFilter', JSON.stringify(false));
-      localStorage.setItem('enableAutoSkip', JSON.stringify(true));
+      localStorage.setItem('enableAutoSkip', JSON.stringify(false));
       localStorage.setItem('enableAutoNextEpisode', JSON.stringify(true));
-      localStorage.setItem('requireClearConfirmation', JSON.stringify(false));
+      localStorage.setItem('requireClearConfirmation', JSON.stringify(true));
       localStorage.setItem('playerBufferMode', 'standard');
       localStorage.setItem('downloadFormat', 'TS');
     }
