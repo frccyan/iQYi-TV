@@ -337,7 +337,7 @@ function HomeClient() {
   const [favoriteSortBy, setFavoriteSortBy] = useState<'recent' | 'title' | 'rating'>('recent');
   const [upcomingFilter, setUpcomingFilter] = useState<'all' | 'movie' | 'tv'>('all');
   const [showClearFavoritesDialog, setShowClearFavoritesDialog] = useState(false);
-  const [requireClearConfirmation, setRequireClearConfirmation] = useState(false);
+  const [requireClearConfirmation, setRequireClearConfirmation] = useState(true);
 
   // 🎯 优化：缓存收藏夹统计信息计算
   const favoriteStats = useMemo(() => {
