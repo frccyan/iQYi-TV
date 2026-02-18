@@ -73,7 +73,12 @@ export async function POST(request: NextRequest) {
       enabled: netDiskConfig.enabled,
       pansouUrl: netDiskConfig.pansouUrl.trim(),
       timeout: netDiskConfig.timeout,
-      enabledCloudTypes: netDiskConfig.enabledCloudTypes
+      enabledCloudTypes: netDiskConfig.enabledCloudTypes,
+      authEnabled: netDiskConfig.authEnabled || false,
+      authUsername: netDiskConfig.authUsername || '',
+      authPassword: netDiskConfig.authPassword || '',
+      authToken: netDiskConfig.authToken || '',
+      tokenExpiry: netDiskConfig.tokenExpiry || 0
     };
 
     // 保存配置到数据库

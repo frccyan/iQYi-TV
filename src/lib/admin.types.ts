@@ -83,6 +83,11 @@ export interface AdminConfig {
     pansouUrl: string;                   // PanSou服务地址
     timeout: number;                     // 请求超时时间(秒)
     enabledCloudTypes: string[];         // 启用的网盘类型
+    authEnabled?: boolean;               // 是否启用认证（默认false）
+    authUsername?: string;               // 认证用户名
+    authPassword?: string;                // 认证密码
+    authToken?: string;                  // 认证Token（自动生成，无需手动设置）
+    tokenExpiry?: number;                // Token过期时间戳
   };
   AIRecommendConfig?: {
     enabled: boolean;                    // 是否启用AI推荐功能

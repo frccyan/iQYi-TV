@@ -6707,7 +6707,12 @@ const NetDiskConfig = ({
     enabled: true,
     pansouUrl: 'https://so.252035.xyz',
     timeout: 30,
-    enabledCloudTypes: ['baidu', 'aliyun', 'quark', 'tianyi', 'uc', 'mobile', '115', 'pikpak', 'xunlei', '123', 'magnet', 'ed2k']
+    enabledCloudTypes: ['baidu', 'aliyun', 'quark', 'tianyi', 'uc', 'mobile', '115', 'pikpak', 'xunlei', '123', 'magnet', 'ed2k'],
+    authEnabled: false,
+    authUsername: '',
+    authPassword: '',
+    authToken: '',
+    tokenExpiry: 0
   });
 
   // 网盘类型选项
@@ -6733,7 +6738,12 @@ const NetDiskConfig = ({
         enabled: config.NetDiskConfig.enabled ?? true,
         pansouUrl: config.NetDiskConfig.pansouUrl || 'https://so.252035.xyz',
         timeout: config.NetDiskConfig.timeout || 30,
-        enabledCloudTypes: config.NetDiskConfig.enabledCloudTypes || ['baidu', 'aliyun', 'quark', 'tianyi', 'uc']
+        enabledCloudTypes: config.NetDiskConfig.enabledCloudTypes || ['baidu', 'aliyun', 'quark', 'tianyi', 'uc'],
+        authEnabled: config.NetDiskConfig.authEnabled || false,
+        authUsername: config.NetDiskConfig.authUsername || '',
+        authPassword: config.NetDiskConfig.authPassword || '',
+        authToken: config.NetDiskConfig.authToken || '',
+        tokenExpiry: config.NetDiskConfig.tokenExpiry || 0
       });
     }
   }, [config]);
@@ -6859,6 +6869,84 @@ const NetDiskConfig = ({
               className='w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500'
             />
           </div>
+        </div>
+      </div>
+
+      {/* 认证配置 */}
+      <div className='bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm'>
+        <div className='mb-6'>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2'>认证配置</h3>
+          <div className='flex items-center space-x-2 text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg'>
+            <svg className='h-4 w-4' fill='currentColor' viewBox='0 0 20 20'>
+              <path fillRule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z' clipRule='evenodd' />
+            </svg>
+            <span>🔐 如果您的PanSou服务启用了认证，请在此处配置用户名和密码</span>
+          </div>
+        </div>
+        
+        <div className='space-y-4'>
+          {/* 启用认证 */}
+          <div className='space-y-2'>
+            <label className='flex items-center space-x-2'>
+              <input
+                type='checkbox'
+                checked={netDiskSettings.authEnabled}
+                onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authEnabled: e.target.checked }))}
+                className='w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700'
+              />
+              <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>启用PanSou认证</span>
+            </label>
+          </div>
+
+          {/* 认证信息 */}
+          {netDiskSettings.authEnabled && (
+            <div className='space-y-4'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div className='space-y-2'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+                    用户名
+                  </label>
+                  <input
+                    type='text'
+                    value={netDiskSettings.authUsername}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authUsername: e.target.value }))}
+                    placeholder='admin'
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500'
+                  />
+                </div>
+                
+                <div className='space-y-2'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+                    密码
+                  </label>
+                  <input
+                    type='password'
+                    value={netDiskSettings.authPassword}
+                    onChange={(e) => setNetDiskSettings(prev => ({ ...prev, authPassword: e.target.value }))}
+                    placeholder='输入密码'
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500'
+                  />
+                </div>
+              </div>
+              
+              {/* Token状态显示 */}
+              {netDiskSettings.authToken && (
+                <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3'>
+                  <div className='flex items-center space-x-2 text-sm text-green-700 dark:text-green-300'>
+                    <svg className='h-4 w-4' fill='currentColor' viewBox='0 0 20 20'>
+                      <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clipRule='evenodd' />
+                    </svg>
+                    <span>✅ 认证Token已配置</span>
+                    {netDiskSettings.tokenExpiry > 0 && (
+                      <span className='text-xs'>
+                        (有效期至: {new Date(netDiskSettings.tokenExpiry * 1000).toLocaleString('zh-CN')})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

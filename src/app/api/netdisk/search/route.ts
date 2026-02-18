@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
+import { getPansouAuthToken, updatePansouAuthConfig } from '@/lib/pansou-auth';
 
 export const runtime = 'nodejs';
 
@@ -59,16 +60,42 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // 准备请求头
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'LunaTV/1.0'
+    };
+
+    // 处理认证
+    if (netDiskConfig.authEnabled && netDiskConfig.authUsername && netDiskConfig.authPassword) {
+      console.log(`🔐 网盘搜索启用认证，用户名: ${netDiskConfig.authUsername}`);
+      
+      const authResult = await getPansouAuthToken(
+        netDiskConfig.pansouUrl,
+        netDiskConfig.authUsername,
+        netDiskConfig.authPassword
+      );
+
+      if ('error' in authResult) {
+        console.error('PanSou认证失败:', authResult.message);
+        throw new Error(`PanSou认证失败: ${authResult.message}`);
+      }
+
+      // 添加认证Token到请求头
+      headers['Authorization'] = `Bearer ${authResult.token}`;
+      
+      // 异步更新配置中的Token信息（不等待）
+      updatePansouAuthConfig(authResult.token, authResult.expiresAt, authResult.username)
+        .catch(err => console.warn('更新PanSou认证配置失败:', err));
+    }
+
     // 调用PanSou服务
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), (netDiskConfig.timeout || 30) * 1000);
 
     const pansouResponse = await fetch(`${netDiskConfig.pansouUrl}/api/search`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'User-Agent': 'LunaTV/1.0'
-      },
+      headers,
       signal: controller.signal,
       body: JSON.stringify({
         kw: query,
@@ -80,6 +107,14 @@ export async function GET(request: NextRequest) {
     clearTimeout(timeout);
 
     if (!pansouResponse.ok) {
+      const errorText = await pansouResponse.text();
+      console.error('PanSou服务响应错误:', pansouResponse.status, pansouResponse.statusText, errorText);
+      
+      // 如果是认证错误，提供更友好的错误信息
+      if (pansouResponse.status === 401) {
+        throw new Error('PanSou认证失败，请检查用户名和密码是否正确');
+      }
+      
       throw new Error(`PanSou服务响应错误: ${pansouResponse.status} ${pansouResponse.statusText}`);
     }
 
