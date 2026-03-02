@@ -66,6 +66,11 @@ export type VideoCardHandle = {
   setDoubanId: (id?: number) => void;
 };
 
+import { loadedImageUrls } from '@/lib/imageCache';
+
+// Module-level cache: tracks poster URLs already loaded by the browser.
+// Survives VirtuosoGrid remount cycles so re-entering items skip the skeleton.
+
 const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard(
   {
     id,
@@ -101,8 +106,12 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
   const deletePlayRecordMutation = useDeletePlayRecordMutation();
 
   const [favorited, setFavorited] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false); // 图片加载状态
+  const [isLoading, setIsLoading] = useState(() =>
+    loadedImageUrls.has(processImageUrl(poster))
+  );
+  const [imageLoaded, setImageLoaded] = useState(() =>
+    loadedImageUrls.has(processImageUrl(poster))
+  ); // 图片加载状态
   const [showMobileActions, setShowMobileActions] = useState(false);
   const [searchFavorited, setSearchFavorited] = useState<boolean | null>(null); // 搜索结果的收藏状态
   const [showAIChat, setShowAIChat] = useState(false); // AI问片弹窗
@@ -185,17 +194,18 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
            (isAggregate && dynamicSourceNames && dynamicSourceNames.length > 0);
   }, [remarks, hasReleaseTag, isAggregate, dynamicSourceNames]);
 
-  // 获取收藏状态（搜索结果页面不检查）
+  // 获取收藏状态
   useEffect(() => {
-    // 豆瓣内容和非搜索页面需要检查收藏状态
-    const shouldCheckFavorite = from !== 'search';
-
-    if (!shouldCheckFavorite || !actualSource || !actualId) return;
+    if (!actualSource || !actualId) return;
 
     const fetchFavoriteStatus = async () => {
       try {
         const fav = await isFavorited(actualSource, actualId);
-        setFavorited(fav);
+        if (from === 'search') {
+          setSearchFavorited(fav);
+        } else {
+          setFavorited(fav);
+        }
       } catch (err) {
         throw new Error('检查收藏状态失败');
       }
@@ -208,9 +218,12 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
     const unsubscribe = subscribeToDataUpdates(
       'favoritesUpdated',
       (newFavorites: Record<string, any>) => {
-        // 检查当前项目是否在新的收藏列表中
         const isNowFavorited = !!newFavorites[storageKey];
-        setFavorited(isNowFavorited);
+        if (from === 'search') {
+          setSearchFavorited(isNowFavorited);
+        } else {
+          setFavorited(isNowFavorited);
+        }
       }
     );
 
@@ -824,16 +837,19 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
             alt={actualTitle}
             fill
             sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, 16vw"
-            className={`${origin === 'live' ? 'object-contain' : 'object-cover'} transition-all duration-500 ease-out ${
-              imageLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-md scale-105'
+            className={`${origin === 'live' ? 'object-contain' : 'object-cover'} transition-opacity duration-300 ease-out ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             referrerPolicy='no-referrer'
             loading={priority ? undefined : 'lazy'}
             priority={priority}
             quality={75}
-            onLoadingComplete={() => {
-              setIsLoading(true);
-              setImageLoaded(true);
+            onLoad={() => {
+              loadedImageUrls.add(processImageUrl(actualPoster));
+              if (!imageLoaded) {
+                setIsLoading(true);
+                setImageLoaded(true);
+              }
             }}
             onError={(e) => {
               // 图片加载失败时的处理
@@ -957,11 +973,11 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                   }}
                 />
               )}
-              {config.showHeart && from !== 'search' && (
+              {config.showHeart && (
                 <Heart
                   onClick={handleToggleFavorite}
                   size={20}
-                  className={`transition-all duration-300 ease-out ${optimisticFavorited
+                  className={`transition-all duration-300 ease-out ${(from === 'search' ? optimisticSearchFavorited : optimisticFavorited)
                     ? 'fill-red-600 stroke-red-600'
                     : 'fill-transparent stroke-white hover:stroke-red-400'
                     } hover:scale-[1.1]`}
