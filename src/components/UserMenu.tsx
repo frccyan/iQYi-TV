@@ -118,7 +118,7 @@ export const UserMenu: React.FC = () => {
   // 设置相关状态
   const [defaultAggregateSearch, setDefaultAggregateSearch] = useState(true);
   const [doubanProxyUrl, setDoubanProxyUrl] = useState('');
-  const [enableOptimization, setEnableOptimization] = useState(false);
+  const [enableOptimization, setEnableOptimization] = useState(true);
   const [fluidSearch, setFluidSearch] = useState(true);
   const [liveDirectConnect, setLiveDirectConnect] = useState(false);
   const [playerBufferMode, setPlayerBufferMode] = useState<
@@ -134,16 +134,52 @@ export const UserMenu: React.FC = () => {
   const [isDoubanImageProxyDropdownOpen, setIsDoubanImageProxyDropdownOpen] =
     useState(false);
   // 跳过片头片尾相关设置
-  const [enableAutoSkip, setEnableAutoSkip] = useState(true);
+  const [enableAutoSkip, setEnableAutoSkip] = useState(false);
   const [enableAutoNextEpisode, setEnableAutoNextEpisode] = useState(true);
 
-  // 清空继续观看确认设置（默认关闭，需要的用户可以开启）
-  const [requireClearConfirmation, setRequireClearConfirmation] = useState(false);
+  // 清空继续观看确认设置（默认开启）
+  const [requireClearConfirmation, setRequireClearConfirmation] = useState(true);
 
   // 下载相关设置
   const [downloadFormat, setDownloadFormat] = useState<'TS' | 'MP4'>('TS');
   // 精确搜索开关
   const [exactSearch, setExactSearch] = useState(true);
+
+  // 从 localStorage 读取设置
+  function readLS<T>(key: string, fallback: T): T {
+    if (typeof window === 'undefined') return fallback;
+    const v = localStorage.getItem(key);
+    if (v === null) return fallback;
+    try { return JSON.parse(v) as T; } catch { return v as unknown as T; }
+  }
+
+  // 加载设置
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    setDefaultAggregateSearch(readLS('defaultAggregateSearch', true));
+    setEnableOptimization(readLS('enableOptimization', true));
+    setFluidSearch(readLS('fluidSearch', true));
+    setLiveDirectConnect(readLS('liveDirectConnect', false));
+    setDoubanProxyUrl(readLS('doubanProxyUrl', ''));
+    setDoubanDataSource(localStorage.getItem('doubanDataSource') ?? 'direct');
+    setDoubanImageProxyType(localStorage.getItem('doubanImageProxyType') ?? 'direct');
+    setDoubanImageProxyUrl(readLS('doubanImageProxyUrl', ''));
+    setContinueWatchingMinProgress(readLS('continueWatchingMinProgress', 5));
+    setContinueWatchingMaxProgress(readLS('continueWatchingMaxProgress', 100));
+    setEnableContinueWatchingFilter(readLS('enableContinueWatchingFilter', false));
+    setEnableAutoSkip(readLS('enableAutoSkip', false));
+    setEnableAutoNextEpisode(readLS('enableAutoNextEpisode', true));
+    setRequireClearConfirmation(readLS('requireClearConfirmation', true));
+    
+    const fmt = localStorage.getItem('downloadFormat');
+    if (fmt === 'TS' || fmt === 'MP4') setDownloadFormat(fmt);
+    
+    const es = localStorage.getItem('exactSearch');
+    if (es !== null) setExactSearch(es === 'true');
+    
+    setPlayerBufferMode(readLS('playerBufferMode', 'standard'));
+  }, []);
 
   // 豆瓣数据源选项
   const doubanDataSourceOptions = [
