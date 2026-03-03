@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import Hls from 'hls.js';
 import { Heart, ChevronUp, Download, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { useDownload } from '@/contexts/DownloadContext';
 import { useDanmu } from '@/hooks/useDanmu';
@@ -5965,11 +5966,11 @@ function PlayPageClient() {
           // 单集视频，直接下载当前
           const currentUrl = videoUrl;
           if (!currentUrl) {
-            alert('无法获取视频地址');
+            toast.error('无法获取视频地址');
             return;
           }
           if (!currentUrl.includes('.m3u8')) {
-            alert('仅支持M3U8格式视频下载');
+            toast.error('仅支持M3U8格式视频下载');
             return;
           }
           try {
@@ -5982,18 +5983,72 @@ function PlayPageClient() {
               referer,
               origin,
             });
+
+            // 显示 Toast 通知
+            toast.success('下载已开始', {
+              description: videoTitle || '视频',
+              action: {
+                label: '查看下载',
+                onClick: () => setShowDownloadPanel(true)
+              },
+              duration: 5000,
+            });
           } catch (error) {
             console.error('创建下载任务失败:', error);
-            alert('创建下载任务失败: ' + (error as Error).message);
+            toast.error('创建下载任务失败', {
+              description: (error as Error).message,
+              duration: 5000,
+            });
           }
           return;
         }
 
-        // 批量下载多集
+        // 批量下载多集 - 立即显示 toast
+        const taskCount = episodeIndexes.length;
+        toast.success('下载已开始', {
+          description: taskCount === 1
+            ? `${videoTitle || '视频'}_第${episodeIndexes[0] + 1}集`
+            : `正在添加 ${taskCount} 个下载任务...`,
+          action: {
+            label: '查看下载',
+            onClick: () => setShowDownloadPanel(true)
+          },
+          duration: 5000,
+        });
+
+        let successCount = 0;
+        let hasAttempted = false;
         for (const episodeIndex of episodeIndexes) {
+          hasAttempted = true;
           try {
-            const episodeUrl = detail.episodes[episodeIndex];
+            let episodeUrl = detail.episodes[episodeIndex];
             if (!episodeUrl) continue;
+
+            // 检查是否为短剧格式，需要先解析
+            if (episodeUrl.startsWith('shortdrama:')) {
+              try {
+                const [, videoId, episode] = episodeUrl.split(':');
+                const nameParam = detail.drama_name ? `&name=${encodeURIComponent(detail.drama_name)}` : '';
+                const response = await fetch(
+                  `/api/shortdrama/parse?id=${videoId}&episode=${episode}${nameParam}`
+                );
+
+                if (response.ok) {
+                  const result = await response.json();
+                  episodeUrl = result.url || '';
+                  if (!episodeUrl) {
+                    console.warn(`第${episodeIndex + 1}集解析失败，跳过`);
+                    continue;
+                  }
+                } else {
+                  console.warn(`第${episodeIndex + 1}集解析失败，跳过`);
+                  continue;
+                }
+              } catch (parseError) {
+                console.error(`第${episodeIndex + 1}集短剧URL解析失败:`, parseError);
+                continue;
+              }
+            }
 
             // 检查是否是M3U8
             if (!episodeUrl.includes('.m3u8')) {
@@ -6013,9 +6068,23 @@ function PlayPageClient() {
               referer,
               origin,
             });
+            successCount++;
           } catch (error) {
             console.error(`创建第${episodeIndex + 1}集下载任务失败:`, error);
           }
+        }
+
+        // 如果有失败的任务，显示错误提示
+        if (successCount === 0 && hasAttempted) {
+          toast.error('下载失败', {
+            description: '无法创建下载任务，请查看控制台了解详情',
+            duration: 5000,
+          });
+        } else if (successCount < taskCount) {
+          toast.warning('部分任务创建失败', {
+            description: `成功添加 ${successCount}/${taskCount} 个下载任务`,
+            duration: 5000,
+          });
         }
       }}
       />
